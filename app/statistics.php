@@ -23,22 +23,42 @@
 
 include('sp-core.php');
 
-$page->setType('tickets');
-$page->setTitle('Tickets');
+$page->setType('statistics');
+$page->setTitle('Statistics');
 
-// Installer completion screen
-if (isset($_GET['installerdone']) && is_dir('install'))
+/*$projects = db_query_toarray("SELECT id, name FROM categories");
+
+$i = 0;
+foreach ($projects as $project)
 {
-	$page->addCSS('install/installer.css');
-	include("install/index.php");
+	$result_logs = db_query("
+		SELECT issues.tags as issuecat, issues.name as issuename, log_issues.when_occured as logwhen, log_issues.userid, log_issues.actiontype
+		FROM issues
+		RIGHT JOIN log_issues ON log_issues.issue = issues.id
+		WHERE category = '{$project['id']}'
+		ORDER BY log_issues.when_occured DESC
+	");
+	$j=0;
+	while ($issue = mysql_fetch_array($result_logs))
+	{				
+		$projects[$i]['logs'][$j] = array(
+			'when_occured' => strtotime($issue['logwhen']),
+			'actiontype' => $issue['actiontype'],
+			'userid' => $issue['userid'],
+			'category' => $issue['issuecat'],
+			'name' => $issue['issuename']
+		);
+		$j+=1;
+	}
+	$i+=1;
 }
 
-// Get the tickets and show them!
-$tickets = ticket_list($_GET['status'], 'desc', true);
 $page->include_template(
-	'tickets',
+	'statistics.php',
 	array(
-		'tickets' => $tickets
+		'projects' => $projects
 	)
-);
+);*/
+
+echo 'todo';
 ?>

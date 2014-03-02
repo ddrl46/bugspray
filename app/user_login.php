@@ -1,7 +1,7 @@
 <?php
-/*
- * bugspray issue tracking software
- * Copyright (c) 2009 a2h - http://a2h.uni.cc/
+/**
+ * spray issue tracking software
+ * Copyright (c) 2009-2010 a2h - http://a2h.uni.cc/
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -19,63 +19,86 @@
  * 
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
-include("functions.php");
+include('sp-core.php');
+
 $page->setType('account');
 $page->setTitle('Login');
 
-if (!isset($_POST['sub']))
-{	
-	echo '<h2>Login</h2>';
-	
-	echo '
-	<form action="" method="post" class="biglabels">
-		<label for="uname">Username</label><br />
-		<input type="text" id="uname" name="uname" class="biginput" tabindex="1" />
-		
-		<br />
-		<br />
-		
-		<label for="pwd">Password</label> <a href="#">(forgot it?)</a><br />
-		<input type="password" id="pwd" name="pwd" class="biginput" tabindex="2" />
-		
-		<br />
-		<br />
-		
-		<input type="submit" name="sub" value="Login" />
-		<input type="checkbox" name="remember" /> <span class="subtitle">Remember me</span>
-		
-		<br /><small>[todo maybe: an ajax version]</small>
-	</form>';
-}
-else
+// Error checking
+$error = false;
+$errors = array();
+
+// Try to login?
+if (isset($_POST['submit']))
 {
-	$isuser = isexistinguser($_POST['uname'],$_POST['pwd']);
-	
-	if ($isuser['hit'] == 1)
-	{
-		// set the session
-		$_SESSION['username'] = stripslashes($_POST['uname']);
-		$_SESSION['password'] = genpass($isuser['salt'],$_POST['pwd']);
-		$_SESSION['uid'] = $isuser['uid'];
-		
-		// does the user want to be remembered?
-		if (isset($_POST['remember']))
-		{
-			setcookie("bs_username", $_SESSION['username'], time()+60*60*24*100, "/");
-			setcookie("bs_password", $_SESSION['password'], time()+60*60*24*100, "/");
-			setcookie("bs_uid", $_SESSION['uid'], time()+60*60*24*100, "/");
-		}
-		
-		// now show the message		
-		echo '<script type="text/javascript">$("#menu_admin").hide();$("#menu_admin").fadeIn();</script>';
+	if ($users->login($_POST['uname'], $_POST['pwd']))
+	{		
+		// We have success!	
 		echo 'You have been logged in.<br /><br /><a href="index.php">Go to your dashboard?</a>';
 	}
 	else
 	{
-		echo 'Could not log you in. Check your credidentials?';
+		$error = true;
+		$errors[] = 'You could not be logged in, please check your credidentials.';
 	}
+}
+
+// Open the form? Or show an error? :O
+if (!isset($_POST['submit']) || $error)
+{
+$page->theme_disable(true);
+?>
+<!DOCTYPE html>
+<html>
+<head>
+<title>Login to <?php echo $config['sitename'] ?></title>
+<link rel="stylesheet" type="text/css" href="sp-includes/_spray.css" />
+</head>
+<body>
+<div id="container">
+	<h1 id="heading">Login to <?php echo $config['sitename'] ?></h1>
+	<div id="back"><a href="index.php">&laquo; back</a></div>
+	
+	<form id="main" action="" method="post">
+		
+		<?php echo output_errors($errors) ?>
+		
+		<dl>
+			<dt>
+				<label for="uname">Username</label>
+			</dt>
+			<dd>
+				<input type="text" id="uname" name="uname" tabindex="1" />
+			</dd>
+		</dl>
+		<dl>
+			<dt>
+				<label for="pwd">Password</label>
+			</dt>
+			<dd>
+				<input type="password" id="pwd" name="pwd" tabindex="2" />
+			</dd>
+		</dl>
+		
+		<div id="remember-wrap">
+			<input type="checkbox" name="remember" id="remember" tabindex="3" />
+			<label for="remember">Remember me</label>
+		</div>
+		
+		<input type="submit" id="submit" name="submit" value="Login" tabindex="4" />
+		
+		<div style="clear: both;"></div>
+	</form>
+	
+	<footer>
+		<div id="powered">powered by <a href="http://github.com/a2h/bugspray">spray</a> <?php echo sp_get_version() ?></div>
+		<div id="by">a project by <a href="http://a2h.uni.cc/">a2h</a></div>
+	</footer>
+</div>
+</body>
+</html>
+<?php
 }
 ?>

@@ -26,15 +26,8 @@ include('sp-core.php');
 $page->setType('tickets');
 $page->setTitle('Tickets');
 
-// Installer completion screen
-if (isset($_GET['installerdone']) && is_dir('install'))
-{
-	$page->addCSS('install/installer.css');
-	include("install/index.php");
-}
-
-// Get the tickets and show them!
 $tickets = ticket_list($_GET['status'], 'desc', true);
+
 $page->include_template(
 	'tickets',
 	array(

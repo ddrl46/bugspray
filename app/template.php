@@ -1,7 +1,7 @@
 <?php
-/*
- * bugspray issue tracking software
- * Copyright (c) 2009 a2h - http://a2h.uni.cc/
+/**
+ * spray issue tracking software
+ * Copyright (c) 2009-2010 a2h - http://a2h.uni.cc/
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -19,163 +19,279 @@
  * 
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
-// temporary
-$sitename = 'my unnamed issue tracker';
-
 // define the locations of everything
-$theme = 'default';
-$location['theme']  = "thm/$theme";
-$location['images'] = "thm/$theme/img";
-$location['styles'] = "thm/$theme/css";
+$theme = $config['theme'];
+$location = array(
+	'includes'    => "sp-includes",
+	'javascripts' => "sp-includes/js",
+	'content'     => "sp-content",
+	'themes'      => "sp-content/themes",
+	'theme'       => "sp-content/themes/$theme",
+	'images'      => "sp-content/themes/$theme/img",
+	'styles'      => "sp-content/themes/$theme/css"
+);
 
 // set up everything
-$page = new PageBuilder($location);
-register_shutdown_function(array($page,'outputAll'));
+$page = new SPTemplate();
+register_shutdown_function(array($page, 'finish'));
 
-// http://ianburris.com/tutorials/oophp-template-engine/
-class PageBuilder
+class SPTemplate
 {
-	private $title, $content, $stylesheets=array(), $javascripts=array(), $bodypre, $disabled=false, $sitename, $location;
+	private $title, $content, $stylesheets=array(), $javascripts=array(), $disabled=false, $location;
 	
-	function PageBuilder($location)
+	function __construct()
 	{
-		global $sitename;
+		global $location, $config;
 		
-		// outside stuff
-		$this->sitename = $sitename;
+		// Outside stuff
 		$this->location = $location;
 		
-		// default stuff to output header
-		$this->title = 'bugspray';
-		$this->addCSS($this->location['styles'].'/screen.css');
-		$this->addJS('js/jquery-1.4.min.js');
-		$this->addJS('js/jquery.colorPicker.js');
-		$this->addJS('js/jquery.amwnd.js');
-		$this->addJS('js/html5.js');
-		$this->addJS('js/bugspray.js');
+		// Default stuff to output to the header
+		$this->title = 'spray';
+		$this->addCSS($this->location['styles'] . '/screen.css');
 		
-		// start capturing the content
+		// Enqueue the bugspray JavaScript, which we always need
+		$this->script_enqueue('spray', $this->location['javascripts'] . '/bugspray.js', array('jquery'));
+		
+		// Alrighty, let's start capturing content!
 		ob_start();
 	}
 	
-	function disableTemplate()
+	public function theme_disable($do)
 	{
-		$this->disabled = true;
+		$this->disabled = $do;
 	}
 	
-	function setTitle($title)
+	public function script_enqueue($id, $path='', $depends=array())
 	{
-		global $sitename;
-		$this->title = $title . ' | ' . $this->sitename;
+		// Don't reinclude things, of course
+		if (!$this->javascripts[$id])
+		{
+			// Predetermined stuff and... stuff
+			switch ($id)
+			{
+				// jQuery, of course
+				case 'jquery':
+					$this->javascripts['jquery'] = $this->location['javascripts'] . '/jquery-1.4.2.min.js';
+					break;
+				
+				// Allow for HTML5 support in Internet Explorer
+				case 'html5ie':
+					$this->javascripts['html5'] = $this->location['javascripts'] . '/html5.js';
+					break;
+				
+				// Something we don't know about?
+				default:
+					// If there's no path, ignore the request (and of course log it)
+					if (!$path)
+					{
+						global $debug, $debug_log;
+						$debug_log[] = array(
+							'text' => 'Something tried to enqueue a script with an unrecognised id "' . $id . '", but there was no path supplied!'
+						);
+					}
+					else
+					{
+						// Do we have dependencies?
+						if (!empty($depends))
+						{
+							foreach ($depends as $depend)
+							{
+								$this->script_enqueue($depend);
+							}
+						}
+						
+						// Alright, let's enqueue our actual script!
+						$this->javascripts[$id] = $path;
+						break;
+					}
+			}
+		}
 	}
 	
-	function setType($type)
+	public function setTitle($title)
+	{
+		$this->title = $title;
+	}
+	
+	public function setType($type)
 	{
 		$this->type = $type;
 	}
 	
-	function addCSS($path)
+	public function addCSS($path)
 	{
 		$this->stylesheets[] = $path;
 	}
 	
-	function addJS($path)
+	public function get_menu()
 	{
-		$this->javascripts[] = $path;
-	}
-	
-	function addBodyPre($content)
-	{
-		$this->bodypre .= $content;
-	}
-	
-	function outputBodyPre()
-	{
-		echo $this->bodypre;
-	}
-	
-	function getMenu()
-	{
-		include("menu.php");
+		// Grab the menu
+		include($this->location['content'] . '/menu.php');
 		
-		for ($i=0;$i<sizeof($menu);$i++)
+		// Cycle through the menu to see if we have an item matching our current page type
+		foreach ($menu as &$menuitem)
 		{
-			if ($menu[$i]['id'] == $this->type)
-			{
-				$menu[$i]['selected'] = true;
-			}
-			else
-			{
-				$menu[$i]['selected'] = false;
-			}
+			$menuitem['selected'] = $menuitem['id'] == $this->type ? true : false;
 		}
+		
+		// And we're done with this!
 		return $menu;
 	}
 	
-	function outputHead()
+	public function get_head()
 	{
-		echo '<title>'.$this->title.'</title>'."\n";
+		global $config;
 		
+		// Form the title
+		$string = '<title>' . $this->title . ' &laquo; ' . $config['sitename'] . '</title>'."\n";
+		
+		// We'll just have it UTF-8 at all times for now
+		$string .=  "\t".'<meta charset="UTF-8" />'."\n";
+		
+		// Output the inclusion of stylesheet files
 		foreach ($this->stylesheets as $stylesheet)
 		{
-			echo "\t\t".'<link rel="stylesheet" type="text/css" href="'.$stylesheet.'" />'."\n";
+			$string .=  "\t".'<link rel="stylesheet" type="text/css" href="'.$stylesheet.'" />'."\n";
 		}
+		
+		// Output the inclusion of JavaScript files
 		foreach ($this->javascripts as $javascript)
 		{
-			echo "\t\t".'<script type="text/javascript" src="'.$javascript.'"></script>'."\n";
+			$string .=  "\t".'<script type="text/javascript" src="'.$javascript.'"></script>'."\n";
 		}
+		
+		return $string;
 	}
 	
-	function outputContent()
+	public function output_head()
 	{
+		echo $this->get_head();
+	}
+	
+	public function outputContent()
+	{		
 		echo $this->content;
 	}
 	
-	function outputSidebar()
+	public function include_template($page, $variables=array())
 	{
-		include("sidebar.php");
-	}
-	
-	function setPage($page,$variables=array())
-	{
-		extract($variables,EXTR_SKIP);
+		global $config, $users;
+		
+		// Grab the variables
+		extract($variables, EXTR_SKIP);
+		
+		// Convenience variables for use by the included template
 		$location = $this->location;
-		if (!file_exists($this->location['theme'].'/'.$page))
+		
+		// If the desired file doesn't exist, we include it from the default theme
+		if (!file_exists($this->location['theme'] . '/template_' . $page . '.php'))
 		{
-			include('thm/default/'.$page);
+			include($this->location['themes'] . '/default/template_' . $page . '.php');
 		}
 		else
 		{
-			include($this->location['theme'].'/'.$page);
+			include($this->location['theme'] . '/template_' . $page . '.php');
 		}
+		
+		// This is to allow for nice spacing
 		echo "\n";
 	}
 	
-	function build()
+	private function build_debug()
 	{
-		if ($this->disabled)
+		global $debug, $debug_log;
+		
+		$tqueries = 0;
+		
+		// First, we output the top
+		$debugout = '
+			<section id="debug">
+				<h1>Debug output</h1>
+				<table>
+					<thead>
+						<tr>
+							<th style="width:80px;">Type</th>
+							<th>Description</th>
+						</tr>
+					</thead>
+					<tbody>
+		';
+		
+		// Output each of the log stuff
+		foreach ($debug_log as $log)
 		{
-			return $this->content;
+			switch ($log['type'])
+			{
+				case 'query':
+					$tqueries++;
+					$debugout .= '<tr><td>Query #' . $tqueries . '</td><td>' . $log['text'] . '</td>';
+					break;
+				default:
+					$debugout .= '<tr><td>Unknown</td><td>' . $log['text'] . '</td>';
+					break;
+			}
 		}
-		else
-		{
-			ob_start();
-			$location = $this->location;
-			include($this->location['theme'].'/overall.php');
-			return ob_get_clean();
-		}
+		
+		// How long'd it take to generate this page?
+		global $starttime;
+		$mtime = explode(' ', microtime());
+		$totaltime = sprintf('%.5f', $mtime[0] + $mtime[1] - $starttime);
+		
+		// And now output the bottom, along with the generation time
+		$debugout .= '
+					</tbody>
+				</table>
+				<p>
+					This page was generated by <del>unicorn powers</del> spray ' . sp_get_version() . ' in ' . $totaltime . ' seconds
+				</p>
+			</section>
+		';
+		
+		return "\n" . $debugout . "\n";
 	}
 	
-	function outputAll()
+	public function finish()
 	{
-		// stop capturing everything
+		global $config, $client, $debug;
+		
+		// Stop capturing all that lovely content
 		$this->content = ob_get_clean();
 		
-		// build the page
-		echo $this->build();
+		// Don't want the overall stuff? All coo' :D
+		if ($this->disabled)
+		{
+			echo $this->content;
+			return true;
+		}
+		
+		// Alright, the overall template can handle the content...
+		ob_start();
+		$this->include_template('overall');
+		$out = ob_get_clean();
+		
+		// To ensure nothing at all is run (at least, most stuff) after debug info, we stick it at the end :O
+		if ($debug)
+		{
+			$out = str_replace('</body>', $this->build_debug() . '</body>', $out);
+		}
+		
+		// Do we want to strip whitespace used for making the source readable?
+		if ($config['stripwhitespace'])
+		{
+			// Tabs are interpreted as spaces by browsers, so keep in mind usage of that
+			$out = str_replace("\n\t", "\n ", $out);
+			
+			// We can remove a bit more
+			$out = str_replace('> </', '></', $out);
+			
+			// And now we get rid of the rest
+			$out = str_replace(array("\n","\r","\r\n","\t"), '', $out);
+		}
+		
+		echo $out;
 	}
 }
 

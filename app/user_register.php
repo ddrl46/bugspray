@@ -1,7 +1,7 @@
 <?php
-/*
- * bugspray issue tracking software
- * Copyright (c) 2009 a2h - http://a2h.uni.cc/
+/**
+ * spray issue tracking software
+ * Copyright (c) 2009-2010 a2h - http://a2h.uni.cc/
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -19,10 +19,10 @@
  * 
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
-include("functions.php");
+include('sp-core.php');
+
 $page->setType('account');
 $page->setTitle('Register');
 
@@ -30,10 +30,10 @@ echo '<h2>Register</h2>';
 
 if ($recaptcha_use)
 {
-	require_once("recaptchalib.php");
+	require_once('sp-includes/recaptchalib.php');
 }
 
-if (isset($_POST['sub']))
+if (isset($_POST['submit']))
 {
 	$error = false;
 
@@ -81,38 +81,23 @@ if (isset($_POST['sub']))
 	}
 	
 	// error check: html characters
-	if ($_POST['uname'] != strip_tags($_POST['uname']))
+	if ($_POST['uname'] != strip_tags($_POST['uname']) || $_POST['uname'] != escape_smart($_POST['uname']))
 	{
-		$errors_user[] = 'Your desired username contains HTML characters. These are not allowed.';
-		$error = true;
-	}
-	
-	// error check: code injection characters
-	if ($_POST['uname'] != escape_smart($_POST['uname']))
-	{
-		$errors_user[] = 'Your desired username contains characters that can be used for code injection. These are not allowed.';
+		$errors_user[] = 'Your desired username contains invalid characters.';
 		$error = true;
 	}
 	
 	// error check: password too short
-	if (strlen($_POST['pwd']) < 6)
+	if (strlen($_POST['pwd']) < 5)
 	{
 		$errors_pwd[] = 'Your desired password is too short, please create a longer password.';
 		$error = true;
 	}
 	
-	// error check: password mismatch
-	if ($_POST['pwd'] != $_POST['pwd2'])
+	// error check: invalid email
+	if (!is_email($_POST['emal']))
 	{
-		$errors_pwd2[] = 'You did not type your password the same both times, please try again.';
-		$error = true;
-	}
-	
-	// error check: email mismatch
-	if ($_POST['email'] != $_POST['email2'])
-	{
-		$errors_email2[] = 'You did not type your email the same both times, please try again.';
-		$error = true;
+		$errors_email[] = 'The email you provided cannot be a valid one, please check it.';
 	}
 	
 	// no errors! whew
@@ -120,8 +105,8 @@ if (isset($_POST['sub']))
 	{
 		$u = escape_smart($_POST['uname']);
 		$s = md5(rand(0,9001));
-		$p = genpass($s,$_POST['pwd']);
-		$e = escape_smart($_POST['email']);
+		$p = $users->generate_password($s,$_POST['pwd']);
+		$e = escape_smart($_POST['emal']);
 		
 		$query = db_query("INSERT INTO users (username,password,password_salt,when_registered,email,avatar_type,avatar_location)".
 		                  "VALUES ('$u','$p','$s',NOW(),'$e',1,'img/defaultava.png')");
@@ -137,7 +122,7 @@ if (isset($_POST['sub']))
 if ($error || !isset($_POST['subregister']))
 {
 	echo '
-	<div class="ibox_alert" style="width:600px;">
+	<div class="alert" style="width: 768px;">
 		<img src="img/alert/exclaim.png" alt="" />
 		<b>As you\'re filling the form out, make sure:</b>
 		
@@ -148,81 +133,59 @@ if ($error || !isset($_POST['subregister']))
 		<ul>
 			<li>Be at least 3 characters</li>
 			<li>Be <b>no longer</b> than 24 characters</li>
+			<li>Not contain any of the following characters: &lt; &gt; \' &quot;</li>
 		</ul>
 		The password you provide should:
 		<ul>
-			<li>Be at least 6 characters</li>
-			<li>Not contain your username</li>
-			<li>Not contain the word(s) "password"</li>
+			<li>Be at least 5 characters</li>
 		</ul>
 	</div>
 	
 	<br />
 	<br />
 	
-	<form action="" method="post" class="biglabels">
-		<label for="uname">Username</label><br />
-		'.outputerrors($errors_user).'
-		<input type="text" id="uname" name="uname" class="biginput" value="'.$_POST['uname'].'" />
+	<form action="" method="post">
+		<dl class="form big">
+			<dt>
+				<label for="uname">Us<span style="display:none;">blarghasdkjls</span>ername</label>
+				' . output_errors($errors_user) . '
+			</dt>
+			<dd>
+				<input type="text" id="uname" name="uname" class="biginput" value="' . $_POST['uname'] . '" />
+			</dd>
+		</dl>
 		
-		<br />
-		<br />
+		<dl class="form big">
+			<dt>
+				<label for="pwd">Password</label>
+				' . output_errors($errors_pwd) . '
+			</dt>
+			<dd>
+				<input type="password" id="pwd" name="pwd" class="biginput" />
+			</dd>
+		</dl>
 		
-		<label for="pwd">Password</label><br />
-		'.outputerrors($errors_pwd).'
-		<input type="password" id="pwd" name="pwd" class="biginput" />
-		
-		<br />
-		<br />
-		
-		<label for="pwd2">Password (again)</label><br />
-		'.outputerrors($errors_pwd2).'
-		<input type="password" id="pwd2" name="pwd2" class="biginput" />
-		
-		<br />
-		<br />
-		
-		'.outputerrors($errors_email).'
-		<label for="email">Email</label><br />
-		<input type="text" id="email" name="email" class="biginput" value="'.$_POST['email'].'" />
-		
-		<br />
-		<br />
-		
-		<label for="email2">Email (again)</label><br />
-		'.outputerrors($errors_email2).'
-		<input type="text" id="email2" name="email2" class="biginput" value="'.$_POST['email2'].'" />
-		
-		<br />
-		<br />
-		
-		'.($recaptcha_use?'
-		<label for="recaptcha_response_field">Anti-bot</label><br />
-		'.recaptcha_get_html($recaptcha_key_public,$recaptcha_error).'<br /><br />':'').'
-		
-		<input type="submit" name="sub" value="Register" />
+		<dl class="form big">
+			<dt>
+				<label for="emal">Ema<span style="display:none;">sddskjfcnx</span>il</label>
+				' . output_errors($errors_email) . '
+			</dt>
+			<dd>
+				<input type="text" id="emal" name="emal" class="biginput" value="' . $_POST['emal'] . '" />
+			</dd>
+		</dl>
+			
+		' . ($recaptcha_use ? 
+		'<dl class="form big">
+			<dt>
+				<label for="recaptcha_response_field">Anti-bot</label>
+			</dt>
+			<dd>
+			' . recaptcha_get_html($recaptcha_key_public, $recaptcha_error) . '
+			</dd>
+		</dl>' : '') . '
+			
+		<input type="submit" name="submit" value="Register" />
 	</form>';
-}
-
-function outputerrors($arr)
-{
-	$o = '';
-	
-	if (sizeof($arr) > 0)
-	{
-		$o .= '
-		<div class="ibox_error">';
-		
-		$i=0;
-		foreach ($arr as $msg)
-		{
-			$o .= '<div>'.$msg.'</div>';
-		}
-		
-		$o .= '
-		</div>';
-	}
-	
-	return $o;
 }
 ?>

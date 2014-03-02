@@ -1,7 +1,7 @@
 <?php
-/*
- * bugspray issue tracking software
- * Copyright (c) 2009 a2h - http://a2h.uni.cc/
+/**
+ * spray issue tracking software
+ * Copyright (c) 2009-2010 a2h - http://a2h.uni.cc/
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -19,37 +19,23 @@
  * 
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
-include("functions.php");
+include('sp-core.php');
+
 $page->setType('account');
 $page->setTitle('Logout');
 
-if (!isloggedin())
+if (!$users->client->is_logged)
 {
 	echo 'Congratulations, you have just created a paradox. A black hole is currently being formed behind you.';
 }
 else
-{
-	// kill ze cookies
-	if (isset($_COOKIE['bs_username']) && isset($_COOKIE['bs_password']))
+{	
+	if ($users->logout())
 	{
-	   setcookie("bs_username", "", time()-60*60*24*100, "/");
-	   setcookie("bs_password", "", time()-60*60*24*100, "/");
-	   setcookie("bs_uid", "", time()-60*60*24*100, "/");
+		// congraulations, you have helped destroy ze vorld!
+		echo 'You have been logged out.<br /><br /><small>[todo maybe: an ajax version]</small>';
 	}
-	
-	// kill ze session variables
-	unset($_SESSION['username']);
-	unset($_SESSION['password']);
-	unset($_SESSION['uid']);
-	
-	// kill ze session
-	$_SESSION = array();
-	session_destroy();
-	
-	// congraulations, you have helped destroy ze vorld!
-	echo 'You have been logged out.<br /><br /><small>[todo maybe: an ajax version]</small>';
 }
 ?>
